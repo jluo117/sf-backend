@@ -12,7 +12,7 @@ from app import __version__
 from app.config import get_settings
 from app.crud import count_contacts
 from app.database import engine, get_db, init_db
-from app.routers import contacts
+from app.routers import contacts, media
 from app.schemas import HealthResponse, RootResponse
 from app.seed import seed_if_empty
 
@@ -91,6 +91,7 @@ app.add_middleware(
 )
 
 app.include_router(contacts.router)
+app.include_router(media.router)
 app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
 
 

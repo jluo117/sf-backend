@@ -119,7 +119,7 @@ def test_patch_same_email_is_allowed(client, payload):
 def test_upload_profile_picture(client, payload):
     contact_id = client.post(BASE, json=payload).json()["id"]
     response = client.post(
-        f"{BASE}/{contact_id}/profile-picture",
+        "/api/v1/media/profile-picture",
         files={"picture": ("avatar.png", b"fake-png", "image/png")},
     )
 
@@ -127,13 +127,13 @@ def test_upload_profile_picture(client, payload):
     picture_url = response.json()["profile_picture"]
     assert picture_url.startswith("/media/profile-pictures/")
     assert client.get(picture_url).content == b"fake-png"
-    assert client.get(f"{BASE}/{contact_id}").json()["profile_picture"] == picture_url
+    assert client.get(f"{BASE}/{contact_id}").json()["profile_picture"] == payload["profile_picture"]
 
 
 def test_upload_profile_picture_rejects_non_images(client, payload):
     contact_id = client.post(BASE, json=payload).json()["id"]
     response = client.post(
-        f"{BASE}/{contact_id}/profile-picture",
+        "/api/v1/media/profile-picture",
         files={"picture": ("avatar.txt", b"not-an-image", "text/plain")},
     )
 
@@ -143,11 +143,43 @@ def test_upload_profile_picture_rejects_non_images(client, payload):
 def test_upload_profile_picture_rejects_files_over_5mb(client, payload):
     contact_id = client.post(BASE, json=payload).json()["id"]
     response = client.post(
-        f"{BASE}/{contact_id}/profile-picture",
+        "/api/v1/media/profile-picture",
         files={"picture": ("large.png", b"x" * (5 * 1024 * 1024 + 1), "image/png")},
     )
 
     assert response.status_code == 413
+
+
+def test_replacing_profile_picture_removes_old_managed_file(client, payload):
+    contact_id = client.post(BASE, json=payload).json()["id"]
+    uploaded = client.post(
+        "/api/v1/media/profile-picture",
+        files={"picture": ("avatar.png", b"old", "image/png")},
+    ).json()["profile_picture"]
+
+    client.put(
+        f"{BASE}/{contact_id}",
+        json={**payload, "profile_picture": uploaded},
+    )
+    response = client.put(
+        f"{BASE}/{contact_id}",
+        json={**payload, "profile_picture": "https://example.com/new.jpg"},
+    )
+
+    assert response.status_code == 200
+    assert client.get(uploaded).status_code == 404
+
+
+def test_deleting_contact_removes_old_managed_file(client, payload):
+    contact_id = client.post(BASE, json=payload).json()["id"]
+    uploaded = client.post(
+        "/api/v1/media/profile-picture",
+        files={"picture": ("avatar.png", b"old", "image/png")},
+    ).json()["profile_picture"]
+    client.patch(f"{BASE}/{contact_id}", json={"profile_picture": uploaded})
+
+    assert client.delete(f"{BASE}/{contact_id}").status_code == 204
+    assert client.get(uploaded).status_code == 404
 
 
 def test_put_replaces_contact(client, payload):

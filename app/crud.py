@@ -1,10 +1,46 @@
+from pathlib import Path
+from urllib.parse import unquote, urlparse
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Contact
 from app.schemas import ContactCreate, ContactReplace, ContactUpdate
+from app.config import get_settings
 
 SORTABLE_FIELDS = ("id", "first_name", "last_name", "email", "company", "created_at", "updated_at")
+_MANAGED_PROFILE_PREFIXES = ("/media/profile-pictures/", "/api/media/profile-pictures/")
+
+
+def managed_profile_picture_path(url: str | None) -> Path | None:
+    """Resolve only app-owned profile URLs to a path inside the media directory."""
+    if not url:
+        return None
+    parsed = urlparse(url)
+    prefix = next(
+        (prefix for prefix in _MANAGED_PROFILE_PREFIXES if parsed.path.startswith(prefix)),
+        None,
+    )
+    if parsed.scheme or parsed.netloc or prefix is None:
+        return None
+
+    root = (Path(get_settings().media_dir) / "profile-pictures").resolve()
+    candidate = (root / unquote(parsed.path.removeprefix(prefix))).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate
+
+
+def _remove_managed_profile_picture(url: str | None) -> None:
+    path = managed_profile_picture_path(url)
+    if path is None:
+        return
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def _normalize_email(email: str) -> str:
@@ -70,21 +106,29 @@ def create_contact(db: Session, payload: ContactCreate) -> Contact:
 
 
 def replace_contact(db: Session, contact: Contact, payload: ContactReplace) -> Contact:
+    previous_picture = contact.profile_picture
     for field, value in payload.model_dump().items():
         setattr(contact, field, _normalize_email(value) if field == "email" else value)
     db.commit()
     db.refresh(contact)
+    if previous_picture != contact.profile_picture:
+        _remove_managed_profile_picture(previous_picture)
     return contact
 
 
 def update_contact(db: Session, contact: Contact, payload: ContactUpdate) -> Contact:
+    previous_picture = contact.profile_picture
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(contact, field, _normalize_email(value) if field == "email" else value)
     db.commit()
     db.refresh(contact)
+    if previous_picture != contact.profile_picture:
+        _remove_managed_profile_picture(previous_picture)
     return contact
 
 
 def delete_contact(db: Session, contact: Contact) -> None:
+    previous_picture = contact.profile_picture
     db.delete(contact)
     db.commit()
+    _remove_managed_profile_picture(previous_picture)
