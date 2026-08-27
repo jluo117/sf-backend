@@ -26,6 +26,7 @@ def payload() -> dict:
         "first_name": "Ada",
         "last_name": "Lovelace",
         "email": "ada@example.com",
+        "profile_picture": "https://example.com/ada-lovelace.jpg",
         "phone": "+1-415-555-0101",
         "company": "Analytical Engines",
         "job_title": "Mathematician",

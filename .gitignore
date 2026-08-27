@@ -6,6 +6,7 @@ venv/
 .pytest_cache/
 .env
 *.db
+*.png
 .idea/
 .DS_Store
 /.claude/

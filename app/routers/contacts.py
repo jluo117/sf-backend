@@ -14,7 +14,6 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/api/v1/contacts", tags=["contacts"])
-
 CONTACT_ID = Path(description="Identifier returned when the contact was created.", examples=[1], ge=1)
 
 NOT_FOUND = {
