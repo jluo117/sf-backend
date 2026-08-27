@@ -5,6 +5,7 @@ description = "Self-contained Contacts REST API (FastAPI + in-memory SQLite)"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
+    "python-multipart>=0.0.20",
     "uvicorn[standard]>=0.32",
     "sqlalchemy>=2.0",
     "pydantic[email]>=2.9",

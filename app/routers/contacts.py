@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, Response, status
 from sqlalchemy.orm import Session
 
 from app import crud
 from app.database import get_db
+from app.config import get_settings
 from app.models import Contact
 from app.schemas import (
     ContactCreate,
@@ -11,9 +14,18 @@ from app.schemas import (
     ContactReplace,
     ContactUpdate,
     ErrorResponse,
+    ProfilePictureUpload,
 )
 
 router = APIRouter(prefix="/api/v1/contacts", tags=["contacts"])
+settings = get_settings()
+
+PROFILE_PICTURE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
 
 CONTACT_ID = Path(description="Identifier returned when the contact was created.", examples=[1], ge=1)
 
@@ -169,6 +181,40 @@ def update_contact(
     if payload.email is not None:
         _reject_duplicate_email(db, payload.email, exclude_id=contact_id)
     return crud.update_contact(db, contact, payload)
+
+
+@router.post(
+    "/{contact_id}/profile-picture",
+    response_model=ProfilePictureUpload,
+    operation_id="uploadProfilePicture",
+    summary="Upload a contact profile picture",
+    response_description="The public URL of the uploaded picture.",
+    responses={status.HTTP_404_NOT_FOUND: NOT_FOUND},
+)
+async def upload_profile_picture(
+    picture: UploadFile = File(description="JPEG, PNG, WebP, or GIF image, up to 5 MB."),
+    contact_id: int = CONTACT_ID,
+    db: Session = Depends(get_db),
+) -> ProfilePictureUpload:
+    """Store an image and attach its public media URL to an existing contact."""
+    contact = _get_or_404(db, contact_id)
+    extension = PROFILE_PICTURE_TYPES.get(picture.content_type or "")
+    if extension is None:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Profile picture must be a JPEG, PNG, WebP, or GIF")
+
+    contents = await picture.read(settings.max_profile_picture_bytes + 1)
+    if len(contents) > settings.max_profile_picture_bytes:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Profile picture must be 5 MB or smaller")
+
+    filename = f"{uuid4().hex}{extension}"
+    destination = settings.media_dir / "profile-pictures" / filename
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(contents)
+
+    url = f"/media/profile-pictures/{filename}"
+    contact.profile_picture = url
+    db.commit()
+    return ProfilePictureUpload(profile_picture=url)
 
 
 @router.delete(

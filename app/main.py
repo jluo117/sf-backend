@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ from app.seed import seed_if_empty
 
 logger = logging.getLogger("contacts")
 settings = get_settings()
+settings.media_dir.mkdir(parents=True, exist_ok=True)
 
 API_DESCRIPTION = """
 A self-contained REST API for storing people's basic contact information.
@@ -89,6 +91,7 @@ app.add_middleware(
 )
 
 app.include_router(contacts.router)
+app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
 
 
 @app.get(

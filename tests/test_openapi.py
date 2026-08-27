@@ -67,6 +67,7 @@ def test_operation_ids_are_stable_and_unique(spec):
         "getContact",
         "replaceContact",
         "updateContact",
+        "uploadProfilePicture",
         "deleteContact",
         "healthCheck",
         "getRoot",
@@ -76,6 +77,7 @@ def test_operation_ids_are_stable_and_unique(spec):
 def test_all_endpoints_are_present(spec):
     assert set(spec["paths"][CONTACTS_PATH]) == {"get", "post"}
     assert set(spec["paths"][ITEM_PATH]) == {"get", "put", "patch", "delete"}
+    assert set(spec["paths"][f"{ITEM_PATH}/profile-picture"]) == {"post"}
     assert "/health" in spec["paths"]
 
 

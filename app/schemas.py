@@ -26,6 +26,12 @@ class ContactBase(BaseModel):
         ),
         examples=["ada@example.com"],
     )
+    profile_picture: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Optional URL for the contact's profile picture.",
+        examples=["https://example.com/ada-lovelace.jpg"],
+    )
     phone: str | None = Field(
         default=None,
         max_length=40,
@@ -125,6 +131,11 @@ class ContactUpdate(BaseModel):
         max_length=320,
         description="New email address. Must not belong to another contact.",
     )
+    profile_picture: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="New profile picture URL.",
+    )
     phone: str | None = Field(default=None, max_length=40, description="New phone number.")
     company: str | None = Field(default=None, max_length=200, description="New company.")
     job_title: str | None = Field(default=None, max_length=200, description="New job title.")
@@ -187,6 +198,12 @@ class ContactPage(BaseModel):
     )
     limit: int = Field(description="Page size that was applied.", examples=[50])
     offset: int = Field(description="Number of records skipped.", examples=[0])
+
+
+class ProfilePictureUpload(BaseModel):
+    """Result of uploading a contact profile picture."""
+
+    profile_picture: str = Field(description="Public URL of the uploaded picture.")
 
 
 class HealthResponse(BaseModel):

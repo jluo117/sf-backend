@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,6 +22,8 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     sql_echo: bool = False
+    media_dir: Path = Path("./media")
+    max_profile_picture_bytes: int = 5 * 1024 * 1024
 
 
 @lru_cache
